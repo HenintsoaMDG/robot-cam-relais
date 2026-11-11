@@ -1,0 +1,75 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Robot CAM</title>
+<style>
+body{margin:0;background:#111;color:#eee;font-family:sans-serif;text-align:center}
+#v{width:100%;max-width:640px;min-height:120px;background:#000;display:block;margin:0 auto}
+.pad{display:grid;grid-template-columns:repeat(3,80px);grid-template-rows:repeat(3,80px);gap:8px;justify-content:center;margin:14px 0}
+button{font-size:28px;border:0;border-radius:12px;background:#2a6;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none}
+button:active{background:#4c8}
+#stop{background:#c33}
+.s{width:80%;max-width:400px}
+#rb{font-weight:bold}
+</style></head><body>
+<h3>ROBOT CAM</h3>
+<div id="rb">Connexion...</div>
+<img id="v" alt="flux video">
+<div class="pad">
+<span></span><button data-d="F">&#9650;</button><span></span>
+<button data-d="L">&#9664;</button><button id="stop" data-d="S">&#9632;</button><button data-d="R">&#9654;</button>
+<span></span><button data-d="B">&#9660;</button><span></span>
+</div>
+<div>Vitesse : <span id="sv">200</span><br>
+<input class="s" id="sp" type="range" min="80" max="255" value="200"></div>
+<p id="st">Pret</p>
+<script>
+var v=document.getElementById('v'),sp=document.getElementById('sp'),
+    sv=document.getElementById('sv'),st=document.getElementById('st'),
+    rb=document.getElementById('rb');
+var pass=prompt('Mot de passe :')||'';
+var ws=null,opened=false,cur='S',timer=null;
+
+function connect(){
+  var proto=location.protocol==='https:'?'wss://':'ws://';
+  ws=new WebSocket(proto+location.host+'/view?key='+encodeURIComponent(pass));
+  ws.binaryType='blob';
+  opened=false;
+  ws.onopen=function(){opened=true;st.textContent='Connecte au relais';};
+  ws.onmessage=function(e){
+    if(typeof e.data==='string'){
+      if(e.data==='robot:1'){rb.textContent='Robot en ligne';rb.style.color='#4c8';}
+      if(e.data==='robot:0'){rb.textContent='Robot hors ligne';rb.style.color='#e55';}
+      return;
+    }
+    var old=v.src;
+    v.src=URL.createObjectURL(e.data);
+    if(old&&old.indexOf('blob:')===0)URL.revokeObjectURL(old);
+  };
+  ws.onclose=function(){
+    if(!opened){
+      pass=prompt('Mot de passe incorrect ou relais en demarrage (1 min). Reessayer :')||'';
+    }
+    rb.textContent='Connexion perdue...';rb.style.color='#e55';
+    setTimeout(connect,2000);
+  };
+}
+connect();
+
+function send(d){
+  if(ws&&ws.readyState===1){ws.send(d+','+sp.value);st.textContent='Commande : '+d;}
+  else st.textContent='Non connecte';
+}
+function start(d){cur=d;send(d);clearInterval(timer);
+  if(d!=='S')timer=setInterval(function(){send(cur);},150);}
+function stop(){clearInterval(timer);timer=null;cur='S';send('S');}
+document.querySelectorAll('button').forEach(function(b){
+  var d=b.dataset.d;
+  b.addEventListener('pointerdown',function(e){e.preventDefault();start(d);});
+  ['pointerup','pointerleave','pointercancel'].forEach(function(ev){
+    b.addEventListener(ev,function(){if(d!=='S')stop();});});
+});
+sp.oninput=function(){sv.textContent=sp.value;};
+var km={ArrowUp:'F',ArrowDown:'B',ArrowLeft:'L',ArrowRight:'R',' ':'S'};
+addEventListener('keydown',function(e){var d=km[e.key];if(d&&!e.repeat){e.preventDefault();start(d);}});
+addEventListener('keyup',function(e){if(km[e.key])stop();});
+</script></body></html>
