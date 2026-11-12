@@ -59,6 +59,7 @@ function onRobot(ws) {
   toViewers('robot:1');
   syncStreaming();
   ws.on('message', (data, isBinary) => {
+    ws.isAlive = true;                    // tout message prouve que le robot est vivant
     if (!isBinary) return;
     for (const v of viewers) {
       // on saute l'image si le client est en retard (evite l'accumulation)
@@ -78,10 +79,11 @@ function onViewer(ws) {
   ws.send(robot ? 'robot:1' : 'robot:0');
   syncStreaming();
   ws.on('message', (data, isBinary) => {
+    ws.isAlive = true;
     if (isBinary) return;
     const m = data.toString();
     // seules les commandes valides passent : F,200  B,150  L,200  R,200  S,0
-    if (/^[FBLRS],\d{1,3}$/.test(m)) toRobot(m);
+    if (/^[FBLRS],\d{1,3}$/.test(m) || m === 'A') toRobot(m);   // 'A' = accuse d'image
   });
   ws.on('close', () => { viewers.delete(ws); syncStreaming(); });
   ws.on('error', () => {});
@@ -94,7 +96,7 @@ setInterval(() => {
     ws.isAlive = false;
     ws.ping();
   }
-}, 25000);
+}, 30000);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => console.log('Relais Robot CAM sur le port ' + PORT));

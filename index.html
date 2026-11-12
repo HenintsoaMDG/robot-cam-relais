@@ -27,6 +27,8 @@ var v=document.getElementById('v'),sp=document.getElementById('sp'),
     sv=document.getElementById('sv'),st=document.getElementById('st'),
     rb=document.getElementById('rb');
 var pass=prompt('Mot de passe :')||'';
+var ack=function(){if(ws&&ws.readyState===1)ws.send('A');};
+v.onload=ack;v.onerror=ack;
 var ws=null,opened=false,cur='S',timer=null;
 
 function connect(){
